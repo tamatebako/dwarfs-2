@@ -1,0 +1,187 @@
+# Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of tamatebako
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# The purpose of this workflow is to check that build procedures work correctly
+# in specific environment. Due to this reason there is no caching. It is done by
+# intention. All caching is in upstream projects.
+#
+# Also this file contains comments that will be useful is dwarfs has to be build
+# in different environment, not GHA.
+name: Ubuntu
+
+on:
+  schedule:
+    - cron: "0 6 * * 6"
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '.cirrus.yml'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/ubuntu.yml'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '.cirrus.yml'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/ubuntu.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+env:
+  CCACHE_FLD: ccache
+
+jobs:
+  build:
+    name: ${{ matrix.os }} [${{ matrix.env.CC }}]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-20.04 ]
+#  We are running two configurations:
+#   - ALL in order to run regression tests
+#   - MKD just to be sure that it build ok
+#        setup:
+#          - scope: 'ALL'
+#            tests: 'ON'
+#          - scope: 'MKD'
+#            tests: 'OFF'
+        env:
+          - CC: gcc
+            CXX: g++
+#          - CC: clang
+#            CXX: clang++
+    env: ${{ matrix.env }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+# https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
+# https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu1804-README.md
+# Already installed: bison flex pkg-config
+
+# cmake good enough is also at GHA. Otherswise:
+# sudo apt-get remove --purge --auto-remove cmake
+# sudo apt-get update
+# sudo apt-get install -y software-properties-common lsb-release
+# sudo apt-get clean all
+# wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+# sudo apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
+# sudo apt update
+# sudo apt install kitware-archive-keyring
+# sudo rm /etc/apt/trusted.gpg.d/kitware.gpg
+# sudo apt update
+# sudo apt install cmake
+
+# gcc/g++ 9 is required
+# On GHA it is already there, otherwise:
+# sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+# sudo apt update
+# sudo apt install gcc-9 g++-9
+
+      - name: Switch to gcc-10
+        if: ${{ matrix.env.CC == 'gcc' }}
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
+          sudo update-alternatives --set gcc /usr/bin/gcc-10
+
+      - name: Install packages
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install \
+          binutils-dev libevent-dev acl-dev libfmt-dev libjemalloc-dev ccache ronn    \
+          libdouble-conversion-dev libiberty-dev liblz4-dev libssl-dev liblzma-dev    \
+          libunwind-dev libdwarf-dev libelf-dev libgoogle-glog-dev libutfcpp-dev      \
+          libboost-filesystem-dev libboost-program-options-dev libboost-system-dev    \
+          libboost-iostreams-dev  libboost-date-time-dev libboost-context-dev         \
+          libboost-regex-dev libboost-thread-dev
+
+      - name: Install libfuse 3 (Full mode)
+#       if: ${{ matrix.setup.scope == 'ALL' }}
+        run: |
+          sudo apt-get install libfuse3-dev
+
+      - name: Build and install libarchive
+        run: ./tools.sh build_and_install_libarchive
+
+#      - name: Remove libfuse 3 (tebako-optimized mode)
+#        if: ${{ matrix.setup.scope == 'MKD' }}
+#        run: |
+#          sudo apt-get remove fuse3 libfuse3-dev fuse libfuse-dev
+
+# sudo apt install ronn does not work for bionic
+# On focal  it cannot process one of files, so we do it natively as well
+# Note that libruby-dev is required under the hood
+
+#      - name: Install Ruby
+#        if: ${{ matrix.setup.scope == 'ALL' }}
+#        uses: ruby/setup-ruby@v1
+#        with:
+#          ruby-version: ${{ env.RUBY_VER }}
+
+#      - name: Install ronn
+#        if: ${{ matrix.setup.scope == 'ALL' }}
+#        run: sudo gem install ronn
+
+      - name: Configure
+        run: |
+          echo "CORES=$(nproc --all)" >> $GITHUB_ENV
+          echo "CCACHE_DIR=$PWD/${{ env.CCACHE_FLD }}"  >> $GITHUB_ENV
+          mkdir -p ${{ env.CCACHE_FLD }}
+          cmake -B build                                  \
+                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=test    \
+                -DCMAKE_PREFIX_PATH=/opt                  \
+                -DWITH_TESTS=ON                           \
+                .
+
+#          cmake -B build -DWITH_TESTS=${{ matrix.setup.tests }}           \
+#                         -DTEBAKO_BUILD_SCOPE=${{ matrix.setup.scope }}   \
+#                         -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install
+
+      - name: Load Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.CCACHE_FLD }}
+          key: ccache-release-${{ matrix.os }}-${{ env.CC }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-release-${{ matrix.os }}-${{ env.CC }}-${{ github.ref }}-
+            ccache-release-${{ matrix.os }}-${{ env.CC }}-
+
+      - name: Build
+        run: cmake --build build --parallel "$CORES"
+
+      - name: Test
+#        if: ${{ matrix.setup.tests == 'ON' }}
+        run: ctest --test-dir build --output-on-failure --parallel "$CORES"

@@ -16,10 +16,10 @@
 # dwarfs.  If not, see <https://www.gnu.org/licenses/>.
 #
 
+cmake_minimum_required(VERSION 3.24.0)
+
 project(dwarfs)
 include(ExternalProject)
-
-cmake_minimum_required(VERSION 3.24.0)
 
 include(CheckCXXSourceCompiles)
 
@@ -200,7 +200,7 @@ endif()
 
 if(PKG_CONFIG_FOUND)
   pkg_check_modules(FUSE IMPORTED_TARGET fuse>=2.9.9)
-  pkg_check_modules(FUSE3 IMPORTED_TARGET fuse3>=3.10.5)
+  pkg_check_modules(FUSE3 IMPORTED_TARGET fuse3>=3.9.0)
   pkg_check_modules(LIBLZ4 IMPORTED_TARGET liblz4>=1.9.3)
   pkg_check_modules(LIBLZMA IMPORTED_TARGET liblzma>=5.2.5)
   pkg_check_modules(LIBBROTLIDEC IMPORTED_TARGET libbrotlidec>=1.0.9)
