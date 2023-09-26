@@ -86,9 +86,10 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O2 -g")
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   add_compile_options(-fcolor-diagnostics)
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "11.0.0")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "13.0.0")
     # for some reason, clang-10 binaries crash upon throwing exceptions
-    add_compile_options(-fno-omit-frame-pointer)
+    # [maxirmx] This is true for clang-12 Release build, but no crash for RelWithDebugInfo
+  add_compile_options(-fno-omit-frame-pointer)
   endif()
 endif()
 

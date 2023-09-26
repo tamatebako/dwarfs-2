@@ -831,7 +831,7 @@ void op_getxattr(fuse_req_t req, fuse_ino_t ino, char const* name,
       }
     }
 
-    std::string_view value = oss.str();
+    auto value = oss.str();
 
     LOG_TRACE << __func__ << ": value.size=" << value.size()
               << ", extra_size=" << extra_size;
@@ -889,7 +889,7 @@ void op_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size) {
       oss << perfmon_xattr << '\0';
     }
 
-    std::string_view xattrs = oss.str();
+    auto xattrs = oss.str();
 
     LOG_TRACE << __func__ << ": xattrs.size=" << xattrs.size();
 

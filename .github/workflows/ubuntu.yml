@@ -62,12 +62,17 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.os }} [${{ matrix.env.CC }}]
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.config.os }} [${{ matrix.config.env.CC }}]
+    runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04 ]
+        config:
+          - { os: ubuntu-20.04, env: { CC: gcc-10,   CXX: g++-10     }, build_type: Release }
+          - { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: Release }
+          - { os: ubuntu-22.04, env: { CC: gcc-12,   CXX: g++-12     }, build_type: Release }
+          - { os: ubuntu-22.04, env: { CC: clang-15, CXX: clang++-15 }, build_type: Release }
+
 #  We are running two configurations:
 #   - ALL in order to run regression tests
 #   - MKD just to be sure that it build ok
@@ -76,29 +81,12 @@ jobs:
 #            tests: 'ON'
 #          - scope: 'MKD'
 #            tests: 'OFF'
-        env:
-          - CC: gcc
-            CXX: g++
-#          - CC: clang
-#            CXX: clang++
-    env: ${{ matrix.env }}
+    env: ${{ matrix.config.env }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: true
-
-      - name: Switch to gcc-10 for Ubuntu-20
-        if: ${{ matrix.env.CC == 'gcc' && matrix.os == 'ubuntu-20.04' }}
-        run: |
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-          sudo update-alternatives --set gcc /usr/bin/gcc-10
-
-      - name: Switch to gcc-12 for Ubuntu-22
-        if: ${{ matrix.env.CC == 'gcc' && matrix.os == 'ubuntu-22.04' }}
-        run: |
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 --slave /usr/bin/g++ g++ /usr/bin/g++-12 --slave /usr/bin/gcov gcov /usr/bin/gcov-12
-          sudo update-alternatives --set gcc /usr/bin/gcc-12
 
       - name: Install packages
         run: |
@@ -143,10 +131,11 @@ jobs:
           echo "CORES=$(nproc --all)" >> $GITHUB_ENV
           echo "CCACHE_DIR=$PWD/${{ env.CCACHE_FLD }}"  >> $GITHUB_ENV
           mkdir -p ${{ env.CCACHE_FLD }}
-          cmake -B build                                  \
-                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=test    \
-                -DCMAKE_PREFIX_PATH=/opt                  \
-                -DWITH_TESTS=ON                           \
+          cmake -B build                                                 \
+                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=test                   \
+                -DCMAKE_PREFIX_PATH=/opt                                 \
+                -DWITH_TESTS=ON                                          \
+                -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }}       \
                 .
 
 #          cmake -B build -DWITH_TESTS=${{ matrix.setup.tests }}           \
@@ -157,10 +146,10 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ env.CCACHE_FLD }}
-          key: ccache-release-${{ matrix.os }}-${{ env.CC }}-${{ github.ref }}-${{ github.sha }}
+          key: ccache-release-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            ccache-release-${{ matrix.os }}-${{ env.CC }}-${{ github.ref }}-
-            ccache-release-${{ matrix.os }}-${{ env.CC }}-
+            ccache-release-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ github.ref }}-
+            ccache-release-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-
 
       - name: Build
         run: cmake --build build --parallel "$CORES"
