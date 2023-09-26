@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04 ]
+        os: [ ubuntu-20.04, ubuntu-22.04 ]
 #  We are running two configurations:
 #   - ALL in order to run regression tests
 #   - MKD just to be sure that it build ok
@@ -88,34 +88,17 @@ jobs:
         with:
           submodules: true
 
-# https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-README.md
-# https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu1804-README.md
-# Already installed: bison flex pkg-config
-
-# cmake good enough is also at GHA. Otherswise:
-# sudo apt-get remove --purge --auto-remove cmake
-# sudo apt-get update
-# sudo apt-get install -y software-properties-common lsb-release
-# sudo apt-get clean all
-# wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
-# sudo apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
-# sudo apt update
-# sudo apt install kitware-archive-keyring
-# sudo rm /etc/apt/trusted.gpg.d/kitware.gpg
-# sudo apt update
-# sudo apt install cmake
-
-# gcc/g++ 9 is required
-# On GHA it is already there, otherwise:
-# sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-# sudo apt update
-# sudo apt install gcc-9 g++-9
-
-      - name: Switch to gcc-10
-        if: ${{ matrix.env.CC == 'gcc' }}
+      - name: Switch to gcc-10 for Ubuntu-20
+        if: ${{ matrix.env.CC == 'gcc' && matrix.os == 'ubuntu-20.04' }}
         run: |
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
           sudo update-alternatives --set gcc /usr/bin/gcc-10
+
+      - name: Switch to gcc-12 for Ubuntu-22
+        if: ${{ matrix.env.CC == 'gcc' && matrix.os == 'ubuntu-22.04' }}
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 --slave /usr/bin/g++ g++ /usr/bin/g++-12 --slave /usr/bin/gcov gcov /usr/bin/gcov-12
+          sudo update-alternatives --set gcc /usr/bin/gcc-12
 
       - name: Install packages
         run: |
