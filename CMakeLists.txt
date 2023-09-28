@@ -113,6 +113,31 @@ endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/version.cmake)
 
+# -----------------------------------------------------------------------------------------
+message(STATUS "Appling tebako settings")
+if (NOT DEPS)
+  set(DEPS "${CMAKE_CURRENT_SOURCE_DIR}/deps")
+  message(STATUS "Using local setting for DEPS folder: ${DEPS}")
+  set(EXTERNAL_DEPS OFF)
+else()
+  message(STATUS "Using upstream setting for DEPS folder: ${DEPS}")
+  set(EXTERNAL_DEPS ON)
+endif()
+
+set(DEPS_INCLUDE_DIR ${DEPS}/include)
+set(DEPS_LIB_DIR ${DEPS}/lib)
+set(DEPS_BIN_DIR ${DEPS}/bin)
+set(DEPS_SBIN_DIR ${DEPS}/sbin)
+
+set(TOOLS "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+
+include(${TOOLS}/cmake-scripts/def-external-project.cmake)
+include(${TOOLS}/cmake-scripts/setup-libarchive.cmake)
+
+include_directories(${DEPS_INCLUDE_DIR})
+link_directories(${DEPS_LIB_DIR})
+# -----------------------------------------------------------------------------------------
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 if(STATIC_BUILD_DO_NOT_USE)
@@ -206,7 +231,6 @@ if(PKG_CONFIG_FOUND)
   pkg_check_modules(LIBLZMA IMPORTED_TARGET liblzma>=5.2.5)
   pkg_check_modules(LIBBROTLIDEC IMPORTED_TARGET libbrotlidec>=1.0.9)
   pkg_check_modules(LIBBROTLIENC IMPORTED_TARGET libbrotlienc>=1.0.9)
-  pkg_check_modules(LIBARCHIVE IMPORTED_TARGET libarchive>=3.6.0)
   pkg_check_modules(ZSTD IMPORTED_TARGET libzstd>=1.5.2)
   pkg_check_modules(XXHASH IMPORTED_TARGET libxxhash>=0.8.1)
 endif()
@@ -815,7 +839,7 @@ if(LIBBROTLIDEC_FOUND AND LIBBROTLIENC_FOUND)
 endif()
 
 if(NOT STATIC_BUILD_DO_NOT_USE)
-  target_link_libraries(dwarfs PkgConfig::LIBARCHIVE)
+  target_link_libraries(dwarfs _LIBARCHIVE)
 endif(NOT STATIC_BUILD_DO_NOT_USE)
 
 if(ZSTD_FOUND AND PREFER_SYSTEM_ZSTD)
@@ -834,7 +858,7 @@ endif()
 
 foreach(tgt ${BINARY_TARGETS} ${MAIN_TARGETS})
   target_link_libraries(${tgt} "$<LINK_LIBRARY:WHOLE_ARCHIVE,dwarfs_compression>")
-  target_link_libraries(${tgt} dwarfs dwarfs_tool)
+  target_link_libraries(${tgt} dwarfs dwarfs_tool _LIBARCHIVE)
   if(USE_JEMALLOC)
     target_link_libraries(${tgt} PkgConfig::JEMALLOC)
   endif(USE_JEMALLOC)

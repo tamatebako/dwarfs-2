@@ -59,6 +59,7 @@ concurrency:
 
 env:
   CCACHE_FLD: ccache
+  RUBY_VER: 3.1
 
 jobs:
   build:
@@ -71,6 +72,8 @@ jobs:
           - { os: ubuntu-20.04, env: { CC: gcc-10,   CXX: g++-10     }, build_type: Release }
           - { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: Release }
           - { os: ubuntu-22.04, env: { CC: gcc-12,   CXX: g++-12     }, build_type: Release }
+# https://github.com/llvm/llvm-project/issues/56357
+# On Ubuntu 22  affects clang versions prior to 15 (file entry.cpp)
           - { os: ubuntu-22.04, env: { CC: clang-15, CXX: clang++-15 }, build_type: Release }
 
 #  We are running two configurations:
@@ -92,7 +95,7 @@ jobs:
         run: |
           sudo apt-get -y update
           sudo apt-get -y install \
-          binutils-dev libevent-dev acl-dev libfmt-dev libjemalloc-dev ccache ronn    \
+          binutils-dev libevent-dev acl-dev libfmt-dev libjemalloc-dev ccache         \
           libdouble-conversion-dev libiberty-dev liblz4-dev libssl-dev liblzma-dev    \
           libunwind-dev libdwarf-dev libelf-dev libgoogle-glog-dev libutfcpp-dev      \
           libboost-filesystem-dev libboost-program-options-dev libboost-system-dev    \
@@ -104,27 +107,21 @@ jobs:
         run: |
           sudo apt-get install libfuse3-dev
 
-      - name: Build and install libarchive
-        run: ./tools.sh build_and_install_libarchive
-
 #      - name: Remove libfuse 3 (tebako-optimized mode)
 #        if: ${{ matrix.setup.scope == 'MKD' }}
 #        run: |
 #          sudo apt-get remove fuse3 libfuse3-dev fuse libfuse-dev
 
-# sudo apt install ronn does not work for bionic
-# On focal  it cannot process one of files, so we do it natively as well
-# Note that libruby-dev is required under the hood
-
-#      - name: Install Ruby
+# sudo apt install ronn does not install a version good enough - it cannot process one of the files
+      - name: Install Ruby
 #        if: ${{ matrix.setup.scope == 'ALL' }}
-#        uses: ruby/setup-ruby@v1
-#        with:
-#          ruby-version: ${{ env.RUBY_VER }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VER }}
 
-#      - name: Install ronn
+      - name: Install ronn
 #        if: ${{ matrix.setup.scope == 'ALL' }}
-#        run: sudo gem install ronn
+        run: sudo gem install ronn
 
       - name: Configure
         run: |
@@ -132,8 +129,7 @@ jobs:
           echo "CCACHE_DIR=$PWD/${{ env.CCACHE_FLD }}"  >> $GITHUB_ENV
           mkdir -p ${{ env.CCACHE_FLD }}
           cmake -B build                                                 \
-                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=test                   \
-                -DCMAKE_PREFIX_PATH=/opt                                 \
+                -DNIXPKGS_DWARFS_VERSION_OVERRIDE=tebako                 \
                 -DWITH_TESTS=ON                                          \
                 -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }}       \
                 .
