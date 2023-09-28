@@ -63,7 +63,7 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.config.os }} [ ${{ matrix.config.env.CC }}, ${{ matrix.setup.scope }} ]
+    name: ${{ matrix.config.os }} [ ${{ matrix.config.env.CC }}, scope ${{ matrix.setup.scope }}, ${{ matrix.config.build_type }} ${{ matrix.config.extra_opts }} ]
     runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
@@ -84,6 +84,10 @@ jobs:
             tests: 'ON'
           - scope: 'MKD'
             tests: 'OFF'
+        include:
+          - config: { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: Debug, extra_opts: '-DENABLE_ASAN=1' }
+            setup:  { scope: 'ALL', tests: 'ON'  }
+
     env: ${{ matrix.config.env }}
     steps:
       - name: Checkout
@@ -141,10 +145,10 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ env.CCACHE_FLD }}
-          key: ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ github.ref }}-${{ github.sha }}
+          key: ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
-            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ github.ref }}-
-            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-
+            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-${{ github.ref }}-
+            ccache-${{ matrix.config.build_type }}-${{ matrix.config.os }}-${{ matrix.config.env.CC }}-${{ matrix.setup.scope }}-${{ matrix.config.extra_opts }}-
 
       - name: Build
         run: cmake --build build --parallel "$CORES"
