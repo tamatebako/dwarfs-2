@@ -87,6 +87,10 @@ jobs:
         include:
           - config: { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: Debug, extra_opts: '-DENABLE_ASAN=1' }
             setup:  { scope: 'ALL', tests: 'ON'  }
+          - config: { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: RelWithDebInfo, extra_opts: '-DENABLE_TSAN=1' }
+            setup:  { scope: 'ALL', tests: 'ON'  }
+          - config: { os: ubuntu-20.04, env: { CC: clang-12, CXX: clang++-12 }, build_type: RelWithDebInfo, extra_opts: '-DENABLE_UBSAN=1' }
+            setup:  { scope: 'ALL', tests: 'ON'  }
 
     env: ${{ matrix.config.env }}
     steps:
